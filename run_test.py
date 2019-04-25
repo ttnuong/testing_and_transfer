@@ -23,18 +23,19 @@ class arg():
     intermediate_size=128 #usual hidden size, linear around z
     hidden_size=30 # latent space z
     test_batch_size=100
-    epochs=10
-    lr=1e-1 #0.001
+    epochs=14
+    lr=1e-3 #0.001
     momentum=0.5
     log_interval=10
     save_model=True
     experiment=2
+    run_continued=True
         
     if not os.path.exists(f"./exp{experiment}"):
         os.makedirs(f"./exp{experiment}")
         os.makedirs(f"./exp{experiment}/data")
         open(f'./exp{experiment}/logfile.txt', 'w+').close()
-    else:
+    elif not run_continued:
         open(f'./exp{experiment}/logfile.txt', 'w+').close()
 
 def to_var(x):
@@ -48,7 +49,7 @@ def do_write(string):
     f.write(string)
     f.close()
 
-def main4(load_old=False):
+def main4():
     
     class Net(nn.Module):
         def __init__(self):
@@ -227,10 +228,14 @@ def main4(load_old=False):
     
     
     device = torch.device("cuda" if use_cuda else "cpu")
-    
-    if load_old:
+    old_models=[]
+    if args.run_continued:
         model=Net().to(device)
-        model.load_state_dict(torch.load(f"exp{args.experiment}/cifar_cnn_5.pt"))
+        import glob
+        old_models=glob.glob(f"exp{args.experiment}/cifar_cnn_*")
+        do_write("\nload old model no ")
+        do_write(f"{len(old_models)}\n")
+        model.load_state_dict(torch.load(f"exp{args.experiment}/cifar_cnn_{len(old_models)}.pt"))
     else:
         model = Net().to(device)
     
@@ -257,7 +262,7 @@ def main4(load_old=False):
     #args.fixed_x=args.fixed_x.to(device)
     #print(np.shape(args.fixed_x.data.cpu().numpy()))
     
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(len(old_models)+1, args.epochs + len(old_models)+1):
 
         
         do_write("in epoch")
@@ -268,7 +273,7 @@ def main4(load_old=False):
         if (args.save_model):
             torch.save(model.state_dict(), f"exp{args.experiment}/cifar_cnn_{epoch}.pt")
 
-    args.f.close()
+
 
 if __name__ == '__main__':
-    main4(load_old=False)
+    main4()
