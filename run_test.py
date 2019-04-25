@@ -18,11 +18,12 @@ warnings.filterwarnings("ignore")
 class arg():
     seed=1
     no_cuda=True
-    batch_size=100
+
+    batch_size=64
     intermediate_size=128 #usual hidden size, linear around z
     hidden_size=30 # latent space z
     test_batch_size=100
-    epochs=3
+    epochs=10
     lr=1e-1 #0.001
     momentum=0.5
     log_interval=10
@@ -30,8 +31,11 @@ class arg():
     experiment=2
         
     if not os.path.exists(f"./exp{experiment}"):
-         os.makedirs(f"./exp{experiment}")
-    f=open(f'./exp{experiment}/logfile.txt','w+')
+        os.makedirs(f"./exp{experiment}")
+        os.makedirs(f"./exp{experiment}/data")
+        open(f'./exp{experiment}/logfile.txt', 'w+').close()
+    else:
+        open(f'./exp{experiment}/logfile.txt', 'w+').close()
 
 def to_var(x):
     if torch.cuda.is_available():
@@ -39,6 +43,10 @@ def to_var(x):
     return Variable(x)
 
 
+def do_write(string):
+    f=open(f'./exp2/logfile.txt','a+')
+    f.write(string)
+    f.close()
 
 def main4(load_old=False):
     
@@ -52,34 +60,32 @@ def main4(load_old=False):
              # Encoder
             #32x32x3
             self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)#32x32x32
-            self.conv2 = nn.Conv2d(32, 96, kernel_size=2, stride=2, padding=0)#16x16x96
-            self.conv3 = nn.Conv2d(96, 256, kernel_size=3, stride=1, padding=1)#16x16x256
-            self.conv3b = nn.Conv2d(256, 512, kernel_size=2, stride=2, padding=0)#8x8x512
-            self.conv4 = nn.Conv2d(512, 1024, kernel_size=3, stride=1, padding=1)#8x8x1024
-            self.fc1a = nn.Linear(8 * 8 * 1024, 16384)
-            self.fc1b = nn.Linear(16384, 2048)
-            self.fc1c = nn.Linear(2048, 180)
+            self.conv2 = nn.Conv2d(32, 32, kernel_size=4, stride=4, padding=0)#8x8x32
+            self.conv3 = nn.Conv2d(32, 96, kernel_size=3, stride=1, padding=1)#8x8x96
+            self.conv3b = nn.Conv2d(96, 96, kernel_size=2, stride=3, padding=0)#3x3x96
+            self.conv4 = nn.Conv2d(96, 256, kernel_size=3, stride=1, padding=1)#3x3x256
+            self.fc1a = nn.Linear(3 * 3 * 256, 180)#2304
             #FC 32x32/240x240= 0,177
             #F*((I-K+2P)/S+1)
-            #m1: [100 x 16384], m2: [16364 x 2048]
             '''# Latent space
             self.fc21 = nn.Linear(128, 20)
             self.fc22 = nn.Linear(128, 20)'''
             # Decoder
             '''self.fc3 = nn.Linear(20, 128)'''
-            self.fc4a = nn.Linear(180, 2048)
-            self.fc4b = nn.Linear(2048, 16384)
-            self.fc4c = nn.Linear(16384, 65536)
-            self.deconv1 = nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=1, padding=1)
-            self.deconv1b = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2, padding=0)
-            self.deconv2 = nn.ConvTranspose2d(256, 96, kernel_size=3, stride=1, padding=1)
-            self.deconv3 = nn.ConvTranspose2d(96, 32, kernel_size=2, stride=2, padding=0)
+
+            self.fc4a = nn.Linear(180, 2304)
+            self.deconv1 = nn.ConvTranspose2d(256, 96, kernel_size=3, stride=1, padding=1)
+            self.deconv1b = nn.ConvTranspose2d(96, 96, kernel_size=2, stride=3, padding=0)
+            self.deconv2 = nn.ConvTranspose2d(96, 32, kernel_size=3, stride=1, padding=1)
+            self.deconv3 = nn.ConvTranspose2d(32, 32, kernel_size=4, stride=4, padding=0)
             self.conv5 = nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1)
             
             self.relu = nn.ReLU()
             self.sigmoid = nn.Sigmoid()
             
         def encode(self, x):
+
+            #do_write("Encoding: Convolution...\n")
             x = F.relu(self.conv1(x))
             x = F.relu(self.conv2(x))
             x = F.relu(self.conv3(x))
@@ -88,9 +94,9 @@ def main4(load_old=False):
        
             x = x.view(x.size(0),-1)
             #pdb.set_trace()
+
+            #do_write("Encoding: FC...\n")
             x = F.relu(self.fc1a(x))
-            x = F.relu(self.fc1b(x))
-            x = F.relu(self.fc1c(x))
             
             return x
         
@@ -102,11 +108,12 @@ def main4(load_old=False):
             return beta
             
         def decode(self, x):
+            #do_write("De-coding: FC...\n")
             out = self.relu(self.fc4a(x))
-            out = self.relu(self.fc4b(out))
-            out = self.relu(self.fc4c(out))
             # import pdb; pdb.set_trace()
-            out = out.view(out.size(0), 1024, 8, 8)
+            out = out.view(out.size(0), 256, 3, 3)
+
+            #do_write("De-coding: Deconvolution...\n")
             out = self.relu(self.deconv1(out))
             out = self.relu(self.deconv1b(out))
             out = self.relu(self.deconv2(out))
@@ -146,6 +153,8 @@ def main4(load_old=False):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)[0]
+
+            #do_write("Calc Loss...\n")
             loss = loss_function(output, data)
             loss.backward()
             
@@ -156,16 +165,14 @@ def main4(load_old=False):
             train_loss += loss.item()
             
             optimizer.step()
-            '''if batch_idx % args.log_interval == 0:
-                args.f.write('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\n'.format(
-                    epoch, batch_idx * len(data), len(train_loader.dataset),
-                           100. * batch_idx / len(train_loader), loss.item()))'''
+
             if batch_idx % args.log_interval == 0:
-                args.f.write('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\n'.format(
+                do_write('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\n'.format(
                     epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader),
-                    loss.item() / len(data)))
-        args.f.write('====> Epoch: {} Average loss: {:.4f}\n'.format(epoch, train_loss / len(train_loader.dataset)))
+                    100. * batch_idx / len(train_loader), loss.item() / len(data)))
+        
+        do_write('====> Epoch: {} Average loss: {:.4f}\n'.format(epoch, train_loss / len(train_loader.dataset)))
+
 
         # save the reconstructed images
         reconst_images = model(args.fixed_x)[0]
@@ -175,7 +182,7 @@ def main4(load_old=False):
         #x = Variable()
         #print(np.shape(reconst_images.data.cpu().numpy()[0]))
         reconst_images = reconst_images.view(reconst_images.size(0), 3, 32, 32)
-        save_image(reconst_images.data.cpu(), f'./data/exp{args.experiment}/CIFAR_reconst_images_%d.png' % (epoch))
+        save_image(reconst_images.data.cpu(), f'./exp{args.experiment}/data/CIFAR_reconst_images_%d.png' % (epoch))
 
     def test(args, model, device, test_loader):
         model.eval()
@@ -195,8 +202,8 @@ def main4(load_old=False):
 
         test_loss /= len(test_loader.dataset)
 
-        args.f.write('\nTest set: Average loss: {:.4f}\n'.format(
-            test_loss))
+
+        do_write('\nTest set: Average loss: {:.4f}\n'.format(test_loss))
     
     args=arg()
         
@@ -244,14 +251,17 @@ def main4(load_old=False):
     data_iter = iter(train_loader)
     fixed_x, _ = next(data_iter)
     #pdb.set_trace()
-    save_image(Variable(fixed_x).data.cpu(), './data/CIFAR_real_images.png')
+    save_image(Variable(fixed_x).data.cpu(), f'./exp{args.experiment}/data/CIFAR_real_images.png')
     args.fixed_x = to_var(fixed_x) 
     #args.fixed_x = to_var(fixed_x.view(fixed_x.size(0), -1)) 
     #args.fixed_x=args.fixed_x.to(device)
     #print(np.shape(args.fixed_x.data.cpu().numpy()))
     
     for epoch in range(1, args.epochs + 1):
-        #print(f"in epoch {epoch}")
+
+        
+        do_write("in epoch")
+        do_write(f"{epoch}\n")
         train(args, model, device, train_loader, optimizer, epoch)
         test(args, model, device, test_loader)
 
@@ -261,5 +271,4 @@ def main4(load_old=False):
     args.f.close()
 
 if __name__ == '__main__':
-
     main4(load_old=False)
