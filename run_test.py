@@ -23,13 +23,15 @@ class arg():
     intermediate_size=128 #usual hidden size, linear around z
     hidden_size=30 # latent space z
     test_batch_size=100
-    epochs=14
-    lr=1e-3 #0.001
+    epochs=13
+    lr=1e-1 #0.001
     momentum=0.5
     log_interval=10
     save_model=True
-    experiment=2
-    run_continued=True
+    
+    #NEW EXP
+    experiment=3
+    run_continued=False
         
     if not os.path.exists(f"./exp{experiment}"):
         os.makedirs(f"./exp{experiment}")
@@ -45,7 +47,7 @@ def to_var(x):
 
 
 def do_write(string):
-    f=open(f'./exp2/logfile.txt','a+')
+    f=open(f'./exp3/logfile.txt','a+')
     f.write(string)
     f.close()
 
@@ -244,7 +246,7 @@ def main4():
     #    model.cuda()
         
     #optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    optimizer = optim.RMSprop(model.parameters(), lr=1e-3)
+    optimizer = optim.RMSprop(model.parameters(), lr=args.lr)
     #gradients tend to vanish or explode
     '''It uses a moving average of squared gradients to normalize the gradient itself. 
     That has an effect of balancing the step size?—?decrease the step for large gradient 
