@@ -17,28 +17,30 @@ warnings.filterwarnings("ignore")
 
 class arg():
     seed=1
-    no_cuda=True
+    no_cuda=False
 
     batch_size=64
     intermediate_size=128 #usual hidden size, linear around z
     hidden_size=30 # latent space z
     test_batch_size=100
-    epochs=13
-    lr=1e-1 #0.001
+    epochs=25
+    lr=1e-5 #0.001
     momentum=0.5
     log_interval=10
     save_model=True
     
+    cwd='D:/video_stash/thisenv/'
     #NEW EXP
-    experiment=3
-    run_continued=False
+    experiment=5
+    run_continued=True
+
         
-    if not os.path.exists(f"./exp{experiment}"):
-        os.makedirs(f"./exp{experiment}")
-        os.makedirs(f"./exp{experiment}/data")
-        open(f'./exp{experiment}/logfile.txt', 'w+').close()
+    if not os.path.exists(os.path.join(cwd,f"exp{experiment}")):
+        os.makedirs(os.path.join(cwd,f"exp{experiment}"))
+        os.makedirs(os.path.join(cwd,f"exp{experiment}/data"))
+        open(os.path.join(cwd,f'exp{experiment}/logfile.txt'), 'w+').close()
     elif not run_continued:
-        open(f'./exp{experiment}/logfile.txt', 'w+').close()
+        open(os.path.join(cwd,f'exp{experiment}/logfile.txt'), 'w+').close()
 
 def to_var(x):
     if torch.cuda.is_available():
@@ -47,7 +49,8 @@ def to_var(x):
 
 
 def do_write(string):
-    f=open(f'./exp3/logfile.txt','a+')
+    cwd='D:/video_stash/thisenv/'
+    f=open(os.path.join(cwd,f'exp5/logfile.txt'),'a+')
     f.write(string)
     f.close()
 
@@ -185,7 +188,7 @@ def main4():
         #x = Variable()
         #print(np.shape(reconst_images.data.cpu().numpy()[0]))
         reconst_images = reconst_images.view(reconst_images.size(0), 3, 32, 32)
-        save_image(reconst_images.data.cpu(), f'./exp{args.experiment}/data/CIFAR_reconst_images_%d.png' % (epoch))
+        save_image(reconst_images.data.cpu(), os.path.join(args.cwd,f'./exp{args.experiment}/data/CIFAR_reconst_images_{epoch}.png'))
 
     def test(args, model, device, test_loader):
         model.eval()
@@ -215,14 +218,14 @@ def main4():
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
     train_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10('./data', train=True, download=True,
+    datasets.CIFAR10(os.path.join(args.cwd,'data'), train=True, download=True,
                       transform=transforms.Compose([
                            transforms.ToTensor(),
                            #transforms.Normalize((0.1307,), (0.3081,))
                        ])),
     batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('./data', train=False, transform=transforms.Compose([
+        datasets.CIFAR10(os.path.join(args.cwd,'data'), train=False, transform=transforms.Compose([
                            transforms.ToTensor(),
                            #transforms.Normalize((0.1307,), (0.3081,))
                        ])),
@@ -234,10 +237,10 @@ def main4():
     if args.run_continued:
         model=Net().to(device)
         import glob
-        old_models=glob.glob(f"exp{args.experiment}/cifar_cnn_*")
-        do_write("\nload old model no ")
+        old_models=glob.glob(os.path.join(args.cwd,f"exp{args.experiment}/cifar_cnn_*"))
+        do_write("\n load old model no ")
         do_write(f"{len(old_models)}\n")
-        model.load_state_dict(torch.load(f"exp{args.experiment}/cifar_cnn_{len(old_models)}.pt"))
+        model.load_state_dict(torch.load(os.path.join(args.cwd,f"exp{args.experiment}/cifar_cnn_{len(old_models)}.pt")))
     else:
         model = Net().to(device)
     
@@ -245,8 +248,12 @@ def main4():
     #if not args.no_cuda:
     #    model.cuda()
         
-    #optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    optimizer = optim.RMSprop(model.parameters(), lr=args.lr)
+        
+        
+    #optimizer = optim.RMSprop(model.parameters(), lr=args.lr)#2, lr=0.001 empfohlen
+    #optimizer = optim.RMSprop(model.parameters(), lr=args.lr)#3, lr=0.1
+    #optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)#4
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)#5
     #gradients tend to vanish or explode
     '''It uses a moving average of squared gradients to normalize the gradient itself. 
     That has an effect of balancing the step size?—?decrease the step for large gradient 
@@ -258,23 +265,20 @@ def main4():
     data_iter = iter(train_loader)
     fixed_x, _ = next(data_iter)
     #pdb.set_trace()
-    save_image(Variable(fixed_x).data.cpu(), f'./exp{args.experiment}/data/CIFAR_real_images.png')
+    save_image(Variable(fixed_x).data.cpu(), os.path.join(args.cwd,f'./exp{args.experiment}/data/CIFAR_real_images.png'))
     args.fixed_x = to_var(fixed_x) 
     #args.fixed_x = to_var(fixed_x.view(fixed_x.size(0), -1)) 
     #args.fixed_x=args.fixed_x.to(device)
     #print(np.shape(args.fixed_x.data.cpu().numpy()))
     
     for epoch in range(len(old_models)+1, args.epochs + len(old_models)+1):
-
-        
         do_write("in epoch")
         do_write(f"{epoch}\n")
         train(args, model, device, train_loader, optimizer, epoch)
         test(args, model, device, test_loader)
 
         if (args.save_model):
-            torch.save(model.state_dict(), f"exp{args.experiment}/cifar_cnn_{epoch}.pt")
-
+            torch.save(model.state_dict(), os.path.join(args.cwd,f"exp{args.experiment}/cifar_cnn_{epoch}.pt"))
 
 
 if __name__ == '__main__':
