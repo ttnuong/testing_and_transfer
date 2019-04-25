@@ -23,16 +23,16 @@ class arg():
     intermediate_size=128 #usual hidden size, linear around z
     hidden_size=30 # latent space z
     test_batch_size=100
-    epochs=25
-    lr=1e-5 #0.001
+    epochs=2
+    lr=1e-1 #0.001
     momentum=0.5
     log_interval=10
     save_model=True
     
     cwd='D:/video_stash/thisenv/'
     #NEW EXP
-    experiment=5
-    run_continued=True
+    experiment=6
+    run_continued=False
 
         
     if not os.path.exists(os.path.join(cwd,f"exp{experiment}")):
@@ -50,7 +50,7 @@ def to_var(x):
 
 def do_write(string):
     cwd='D:/video_stash/thisenv/'
-    f=open(os.path.join(cwd,f'exp5/logfile.txt'),'a+')
+    f=open(os.path.join(cwd,f'exp6/logfile.txt'),'a+')
     f.write(string)
     f.close()
 
@@ -149,7 +149,7 @@ def main4():
     def loss_function(recon_x, x):
         #pdb.set_trace()
         BCE = F.binary_cross_entropy(recon_x.view(-1, 32 * 32 * 3),
-                                 x.view(-1, 32 * 32 * 3), size_average=False)
+                                 x.view(-1, 32 * 32 * 3), size_average=True)
         return BCE 
     
     def train(args, model, device, train_loader, optimizer, epoch):
