@@ -23,7 +23,7 @@ class arg():
     intermediate_size=128 #usual hidden size, linear around z
     hidden_size=30 # latent space z
     test_batch_size=100
-    epochs=2
+    epochs=20
     lr=1e-1 #0.001
     momentum=0.5
     log_interval=10
@@ -31,7 +31,7 @@ class arg():
     
     cwd='D:/video_stash/thisenv/'
     #NEW EXP
-    experiment=6
+    experiment=7
     run_continued=False
 
         
