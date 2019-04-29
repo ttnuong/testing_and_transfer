@@ -19,7 +19,7 @@ class arg():
     seed=1
     no_cuda=False
 
-    batch_size=64
+    batch_size=16
     intermediate_size=128 #usual hidden size, linear around z
     hidden_size=30 # latent space z
     test_batch_size=100
@@ -31,7 +31,7 @@ class arg():
     
     cwd='D:/video_stash/thisenv/'
     #NEW EXP
-    experiment=7
+    experiment=9
     run_continued=False
 
         
@@ -88,15 +88,24 @@ def main4():
             
             self.relu = nn.ReLU()
             self.sigmoid = nn.Sigmoid()
-            
+            self.dropout = nn.Dropout(0.8)
+            self.batchnorm256 = nn.BatchNorm2d(256)
+            self.batchnorm96 = nn.BatchNorm2d(96)
+            self.batchnorm32 = nn.BatchNorm2d(32)
         def encode(self, x):
 
             #do_write("Encoding: Convolution...\n")
             x = F.relu(self.conv1(x))
+            x = self.batchnorm32(x)
+            x = self.dropout(x)
             x = F.relu(self.conv2(x))
             x = F.relu(self.conv3(x))
+            x = self.batchnorm96(x)
+            x = self.dropout(x)
             x = F.relu(self.conv3b(x))
             x = F.relu(self.conv4(x))
+            x = self.batchnorm256(x)
+            x = self.dropout(x)
        
             x = x.view(x.size(0),-1)
             #pdb.set_trace()
@@ -119,10 +128,17 @@ def main4():
             # import pdb; pdb.set_trace()
             out = out.view(out.size(0), 256, 3, 3)
 
+            out = self.batchnorm256(out)
             #do_write("De-coding: Deconvolution...\n")
+            out = self.dropout(out)
+       
             out = self.relu(self.deconv1(out))
+            out = self.batchnorm96(out)
+            out = self.dropout(out)
             out = self.relu(self.deconv1b(out))
             out = self.relu(self.deconv2(out))
+            out = self.batchnorm32(out)
+            out = self.dropout(out)
             out = self.relu(self.deconv3(out))
             out = self.sigmoid(self.conv5(out))
             return out
