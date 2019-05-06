@@ -1,18 +1,18 @@
 from trixi.util import Config
 
 experiment_config = Config(
-    data_path="C:/Users/Nuong/Desktop/MA-Arbeitsordner/data",
+    data_path="C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\data",
 
-    convert=False
-    convert_path="raw"
+    convert=False,
+    convert_path="raw",
     #test_data="train_batch.npy",
     #test_data="test_batch.npy",
-    tensorboard_path="C:/Users/Nuong/Desktop/MA-Arbeitsordner/exp2/tensorboard_log",
+    tensorboard_path="C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\exp2\\tensorboard_log",
     
     run=Config(
         hyperparameter=Config(
             lr=1e-3,
-            batch_size=128,
+            batch_size=32,
         ),
         use_cuda=True,
         gpu_nr = 0,
@@ -22,8 +22,9 @@ experiment_config = Config(
             log_interval=20
         )
     ),
-    base_dir="C:/Users/Nuong/Desktop/MA-Arbeitsordner/data",
+    base_dir="C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\data",
     log_interval=20,
     name="test_nuong",
     n_epochs=10,
+    no_cuda=True
 )

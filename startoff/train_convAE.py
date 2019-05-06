@@ -3,7 +3,7 @@ from experiments.experiment_nuong import ConvAE_CIFAR #ConvAE_Feat
 from configs.config_nuong import experiment_config
 
 if __name__ == '__main__':
-    experiment = ConvAE_Feat(config=experiment_config,
+    experiment = ConvAE_CIFAR(config=experiment_config,
                                  globs=globals(),
                                  loggers={
                                      "visdom": ("visdom", {"auto_start": False, "port": 8080}, 1),

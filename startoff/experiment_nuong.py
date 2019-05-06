@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from common.dataset.video_dataset import VideoDataset
+from torchvision import datasets, transforms
 from common.networks.autoencoder import AutoencoderFrame
 from common.networks.autoencoder import DAE
 from common.networks.nuong_AE import Net
@@ -120,21 +121,22 @@ class ConvAE_CIFAR(PytorchExperiment):
         self.elog.print(self.config)
         data_loader_kwargs = {'num_workers': 12, 'pin_memory': True}
 
-        use_cuda = not args.no_cuda and torch.cuda.is_available()
+        use_cuda = not self.config.no_cuda and torch.cuda.is_available()
         kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
-        train_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('C:/Users/Nuong/Desktop/heidelberg/MA-Arbeitsordner/data', train=True, download=True,
-                          transform=transforms.Compose([
-                               transforms.ToTensor(),
-                               #transforms.Normalize((0.1307,), (0.3081,))
-                           ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-        test_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10('C:/Users/Nuong/Desktop/heidelberg/MA-Arbeitsordner/data', train=False, transform=transforms.Compose([
-                               transforms.ToTensor(),
-                               #transforms.Normalize((0.1307,), (0.3081,))
-                           ])),
-        batch_size=args.batch_size, shuffle=False, **kwargs)
+        train_loader = torch.utils.data.DataLoader(datasets.CIFAR10(self.config.data_path, 
+                                                   train=True, download=True,
+                                                   transform=transforms.Compose([
+                                                       transforms.ToTensor(),
+                                                       #transforms.Normalize((0.1307,), (0.3081,))
+                                                   ])),
+                                                   batch_size=self.config.run.hyperparameter.batch_size, shuffle=True, **kwargs)
+
+        test_loader = torch.utils.data.DataLoader(datasets.CIFAR10(self.config.data_path, 
+                                                                   train=False, transform=transforms.Compose([
+                                                                       transforms.ToTensor(),
+                                                                       #transforms.Normalize((0.1307,), (0.3081,))
+                                                                   ])),
+                                                  batch_size=self.config.run.hyperparameter.batch_size, shuffle=False, **kwargs)
 
         '''self.dataset_train = VideoDataset(os.path.join(self.config.data_path,self.config.train_data))
         self.dataset_test = VideoDataset(os.path.join(self.config.data_path,self.config.test_data))
