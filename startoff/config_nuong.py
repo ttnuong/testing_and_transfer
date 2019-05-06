@@ -1,12 +1,13 @@
 from trixi.util import Config
+import glob
+
 
 experiment_config = Config(
     data_path="C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\data",
-
-    convert=False,
-    convert_path="raw",
-    #test_data="train_batch.npy",
-    #test_data="test_batch.npy",
+    load_old=True
+    exp_no=1
+    old_models=glob.glob(os.path.join(data_path,os.path.join(f"exp{exp_no}","*")))
+    model_load_path=os.path.join(data_path,os.path.join(f"exp{exp_no}",f"cifar_cnn_{len(old_models)}.pt"))
     tensorboard_path="C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\exp2\\tensorboard_log",
     
     run=Config(

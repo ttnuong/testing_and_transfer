@@ -148,7 +148,11 @@ class ConvAE_CIFAR(PytorchExperiment):
         print('Done with loading.')
 
         ### Models
-        self.model = Net()
+        if self.config.load_old:
+            self.model=Net()
+            self.model.load_state_dict(torch.load(self.config.model_load_path))
+        else:
+            self.model = Net()
         if torch.cuda.is_available():
             self.model.cuda() # to gpu
 
