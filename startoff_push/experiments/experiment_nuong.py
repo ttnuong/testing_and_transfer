@@ -8,12 +8,15 @@ from common.dataset.video_dataset import VideoDataset
 from torchvision import datasets, transforms
 from common.networks.autoencoder import AutoencoderFrame
 from common.networks.autoencoder import DAE
-from common.networks.nuong_AE import Net
+import common.networks.nuong_AE
 from trixi.experiment import PytorchExperiment
 
 import glob
 import pickle
 import pytorch_ssim
+
+
+
 class ConvAE_Feat(PytorchExperiment):
 
     def setup(self):
@@ -42,7 +45,7 @@ class ConvAE_Feat(PytorchExperiment):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.run.hyperparameter.lr)
 
         ### Load pre-trained model
-        if "load_path" in self.config:
+        if "load_path" in self.config and self.config.load_old_model:
             self.load_checkpoint(path=self.config.load_path, name="")
 
         ### Criterion
@@ -84,6 +87,8 @@ class ConvAE_Feat(PytorchExperiment):
             loss_list.append(loss.item())
 
         loss_per_epoch = np.mean(np.asarray(loss_list))
+
+
         print('Train Epoch: {} \tMean Loss: {}'.format(epoch, loss_per_epoch))
         self.clog.show_value(loss_per_epoch, name="loss_training")
         self.clog.show_image_grid(data[:2], name="train_images")
@@ -113,7 +118,7 @@ class ConvAE_Feat(PytorchExperiment):
 
 
 
-
+import inspect
 
 class ConvAE_CIFAR(PytorchExperiment):
 
@@ -149,11 +154,13 @@ class ConvAE_CIFAR(PytorchExperiment):
         print('Done with loading.')
 
         ### Models
-        if self.config.load_old:
-            self.model=Net()
-            self.model.load_state_dict(torch.load(self.config.model_load_path))
-        else:
-            self.model = Net()
+        for name, obj in inspect.getmembers(common.networks.nuong_AE):
+            if inspect.isclass(obj):
+                if obj.__name__==self.config.using_model:
+                    self.model=obj()
+        #if self.config.load_old_model:
+        #    self.model.load_state_dict(torch.load(self.config.model_load_path))
+
         if torch.cuda.is_available():
             self.model.cuda() # to gpu
 
@@ -161,24 +168,31 @@ class ConvAE_CIFAR(PytorchExperiment):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.run.hyperparameter.lr)
 
         ### Load pre-trained model
-        if "load_path" in self.config:
-            self.load_checkpoint(path=self.config.load_path, name="")
+        if "load_path" in self.config and self.config.load_old_model:
+            #self.load_checkpoint(path=self.config.load_path, name="")
+            self.load_checkpoint(path=os.path.join(self.elog.work_dir,"checkpoint"), name="")
 
         ### Criterion
         #self.criterion = torch.nn.PairwiseDistance()    #Norm, default 2, in between data pair
         self.criterion = torch.nn.MSELoss() #distance of target to labels
         self.criterion2 = pytorch_ssim.SSIM(window_size=5)
+
+    def do_write(self, string):
+        f=open(os.path.join(self.elog.work_dir,self.config.text_log),'a+')
+        f.write(string)
+        f.close()
+
     def train(self, epoch):
         self.model.train()
 
         loss_list = []
-
+        loss_SSIM_list = []
+        loss_MSE_list = []
         start_time = time.time()
 
         for batch_idx, (data,target) in enumerate(self.train_loader):
             stop_time = time.time()
             diff = stop_time - start_time
-
             start_time = stop_time
 
             #data = data.cuda(async=True)
@@ -190,7 +204,7 @@ class ConvAE_CIFAR(PytorchExperiment):
             output = self.model(data)[0]
 
             loss1 = self.criterion(output, data)
-            loss2 = self.criterion2(output, data)
+            loss2 = (1-self.criterion2(output, data))/10
             loss=loss1+loss2
 
             loss.backward()
@@ -199,14 +213,19 @@ class ConvAE_CIFAR(PytorchExperiment):
             #self.clog.show_image_grid(data[:5], name="train_images")
 
             if batch_idx % self.config.log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                self.do_write('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f} \n'.format(
                     epoch, batch_idx * len(data), len(self.train_loader.dataset),
                            100. * batch_idx / len(self.train_loader), loss.item()))
-
+            
+            
             loss_list.append(loss.item())
+            loss_SSIM_list.append(loss2.item())
+            loss_MSE_list.append(loss1.item())
 
         loss_per_epoch = np.mean(np.asarray(loss_list))
-        print('Train Epoch: {} \tMean Loss: {}'.format(epoch, loss_per_epoch))
+        self.do_write('Train Epoch: {} \tMean Loss: {}\n'.format(epoch, loss_per_epoch))
+        self.do_write('Train Epoch: {} \tMean MSE Loss: {}\n'.format(epoch, np.mean(np.asarray(loss_MSE_list))))
+        self.do_write('Train Epoch: {} \tMean SSIM Loss: {}\n'.format(epoch, np.mean(np.asarray(loss_SSIM_list))))
         self.clog.show_value(loss_per_epoch, name="loss_training")
         self.clog.show_image_grid(data[:2], name="train_images")
         self.clog.show_image_grid(output[:2], name="reproduced_train_images")
@@ -217,6 +236,8 @@ class ConvAE_CIFAR(PytorchExperiment):
         #val_loss = 0
         #correct = 0
         val_loss_list = []
+        val_loss_MSE_list = []
+        val_loss_SSIM_list = []
 
         with torch.no_grad():
             for data,target in self.test_loader:
@@ -225,11 +246,19 @@ class ConvAE_CIFAR(PytorchExperiment):
 
                 output = self.model(data)[0]
                 loss1 = self.criterion(output, data)
-                loss2 = self.criterion2(output, data)
+                loss2 = (1-self.criterion2(output, data))/10
                 loss=loss1+loss2
                 val_loss_list.append(loss.item())
+                val_loss_SSIM_list.append(loss2.item())
+                val_loss_MSE_list.append(loss1.item())
 
         val_loss_per_epoch = np.mean(np.asarray(val_loss_list))
+        self.do_write('\nTest set: Average loss: {:.4f}\n'.format(
+            val_loss_per_epoch))
+        self.do_write('\nTest set: Average MSE loss: {:.4f}\n'.format(
+            np.mean(np.asarray(val_loss_MSE_list))))
+        self.do_write('\nTest set: Average SSIM loss: {:.4f}\n'.format(
+            np.mean(np.asarray(val_loss_SSIM_list))))
         self.clog.show_value(val_loss_per_epoch, name="loss_testing")
         self.clog.show_image_grid(data[:5], name="test_images")
         self.clog.show_image_grid(output[:5], name="reproduced_test_images")

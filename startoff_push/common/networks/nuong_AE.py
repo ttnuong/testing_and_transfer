@@ -78,3 +78,99 @@ class Net(nn.Module):
         mu_0=self.normalize(mu)
         #return self.decode(mu_0),mu_0
         return self.decode(mu),mu
+
+
+class Net_wider(nn.Module):
+        def __init__(self):
+            super(Net_wider, self).__init__()
+             # Encoder
+            #32x32x3
+            self.conv1 = nn.Conv2d(3, 128, kernel_size=8, stride=4, padding=2)#8x8x128
+            self.conv2 = nn.Conv2d(128, 3200, kernel_size=4, stride=3, padding=1)#3x3x3200
+            self.fc1a = nn.Linear(3 * 3 * 3200, 1600)
+            self.fc1b = nn.Linear(1600, 180)#2304
+            #FC 32x32/240x240= 0,177
+            #F*((I-K+2P)/S+1)
+            '''# Latent space
+            self.fc21 = nn.Linear(128, 20)
+            self.fc22 = nn.Linear(128, 20)'''
+            # Decoder
+            '''self.fc3 = nn.Linear(20, 128)'''
+
+            
+            self.fc4a = nn.Linear(180, 1600)
+            self.fc4b = nn.Linear(1600, 3*3*3200)#3x3x3200
+            self.deconv1 = nn.ConvTranspose2d(3200, 128, kernel_size=4, stride=3, padding=1)#8x8x128
+            self.deconv2 = nn.ConvTranspose2d(128, 3, kernel_size=8, stride=4, padding=2)#32x32x3
+            
+            self.relu = nn.ReLU()
+            self.sigmoid = nn.Sigmoid()
+            self.dropout = nn.Dropout(0.8)
+            self.batchnorm128 = nn.BatchNorm2d(128)
+            self.batchnorm3200 = nn.BatchNorm2d(3200)
+            
+            ''' for m in self.modules():
+
+            if isinstance(m, nn.Conv2d):
+
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+
+            elif isinstance(m, nn.BatchNorm2d):
+
+                m.weight.data.fill_(1)
+
+                m.bias.data.zero_()
+
+            elif isinstance(m, nn.Linear):
+
+                m.bias.data.zero_()
+            '''
+        def encode(self, x):
+
+            #do_write("Encoding: Convolution...\n")
+            x = F.relu(self.conv1(x))
+            x = self.batchnorm128(x)
+            x = self.dropout(x)
+            x = F.relu(self.conv2(x))
+            x = self.batchnorm3200(x)
+            x = self.dropout(x)
+       
+            x = x.view(x.size(0),-1)
+            #pdb.set_trace()
+
+            #do_write("Encoding: FC...\n")
+            x = F.relu(self.fc1a(x))
+            x = F.relu(self.fc1b(x))
+            return x
+        
+        def normalize(self, x):
+            #x_normed = x / x.max(0, keepdim=True)[0] 
+            #return x_normed
+            alpha=(x-x.mean(0,keepdim=True))
+            beta=alpha/x.std(0,keepdim=True)
+            return beta
+            
+        def decode(self, x):
+            
+            out = self.relu(self.fc4a(x))
+            out = self.relu(self.fc4b(out))
+            # import pdb; pdb.set_trace()
+            out = out.view(out.size(0), 3200, 3, 3)
+            out = self.batchnorm3200(out)
+            out = self.dropout(out)
+            out = self.relu(self.deconv1(out))
+            out = self.batchnorm128(out)
+            out = self.dropout(out)
+            out = self.sigmoid( self.relu(self.deconv2(out)))
+            return out
+            
+        def forward(self, x):
+            mu = self.encode(x)
+            #return F.log_softmax(x, dim=1)
+            mu_0=self.normalize(mu)
+            #return self.decode(mu_0),mu_0
+            return self.decode(mu),mu
+
+
