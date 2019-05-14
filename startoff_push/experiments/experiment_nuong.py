@@ -15,8 +15,6 @@ import glob
 import pickle
 import pytorch_ssim
 
-
-
 class ConvAE_Feat(PytorchExperiment):
 
     def setup(self):
@@ -45,7 +43,7 @@ class ConvAE_Feat(PytorchExperiment):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.run.hyperparameter.lr)
 
         ### Load pre-trained model
-        if "load_path" in self.config and self.config.load_old_model:
+        if "load_path" in self.config and self.config.load_old_checkpoint:
             self.load_checkpoint(path=self.config.load_path, name="")
 
         ### Criterion
@@ -124,25 +122,47 @@ class ConvAE_CIFAR(PytorchExperiment):
 
     def setup(self):
 
+        def normalize_data(train_set):
+            R_list=[]
+            G_list=[]
+            B_list=[]
+            for this_img,_ in iter(train_set):
+                this_img_np=np.asarray(this_img)
+                R_list.append(this_img_np[0].flatten())
+                G_list.append(this_img_np[1].flatten())
+                B_list.append(this_img_np[2].flatten())
+
+            return (np.mean(np.asarray(R_list)).item(),np.mean(np.asarray(G_list)).item(),np.mean(np.asarray(B_list)).item()),(np.std(np.asarray(R_list)).item(),np.std(np.asarray(G_list)).item(),np.std(np.asarray(B_list)).item())
+
         self.elog.print(self.config)
         data_loader_kwargs = {'num_workers': 12, 'pin_memory': True}
 
         use_cuda = not self.config.no_cuda and torch.cuda.is_available()
         kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
-        self.train_loader = torch.utils.data.DataLoader(datasets.CIFAR10(self.config.data_path, 
-                                                   train=True, download=True,
-                                                   transform=transforms.Compose([
-                                                       transforms.ToTensor(),
-                                                       #transforms.Normalize((0.1307,), (0.3081,))
-                                                   ])),
-                                                   batch_size=self.config.run.hyperparameter.batch_size, shuffle=True, **kwargs)
 
-        self.test_loader = torch.utils.data.DataLoader(datasets.CIFAR10(self.config.data_path, 
-                                                                   train=False, transform=transforms.Compose([
-                                                                       transforms.ToTensor(),
-                                                                       #transforms.Normalize((0.1307,), (0.3081,))
-                                                                   ])),
-                                                  batch_size=self.config.run.hyperparameter.batch_size, shuffle=False, **kwargs)
+        if self.config.run.normalize_data:
+            train_set=datasets.CIFAR10(self.config.data_path, train=True, download=True, transform=transforms.Compose([transforms.ToTensor(),
+                                                        #transforms.Normalize((0.1307,), (0.3081,))
+                                                        ]))
+            mean_, std_ = normalize_data(train_set)
+
+            transforms_=transforms.Compose([
+                                            transforms.ToTensor(),
+                                            transforms.Normalize(mean_, std_)
+                                            ])
+        else:
+            transforms_=transforms.Compose([
+                                            transforms.ToTensor(),
+                                            ])
+
+        self.train_loader = torch.utils.data.DataLoader(datasets.CIFAR10(self.config.data_path, train=True, download=True, 
+                                                        transform=transforms_),
+                                                        batch_size=self.config.run.hyperparameter.batch_size, shuffle=True, **kwargs)
+
+        self.test_loader = torch.utils.data.DataLoader(datasets.CIFAR10(self.config.data_path, train=False, 
+                                                        transform=transforms_),
+                                                        batch_size=self.config.run.hyperparameter.batch_size, shuffle=False, **kwargs)
+        
 
         '''self.dataset_train = VideoDataset(os.path.join(self.config.data_path,self.config.train_data))
         self.dataset_test = VideoDataset(os.path.join(self.config.data_path,self.config.test_data))
@@ -152,12 +172,12 @@ class ConvAE_CIFAR(PytorchExperiment):
         self.test_loader = torch.utils.data.DataLoader(self.dataset_test, batch_size=self.config.run.hyperparameter.batch_size, shuffle = True)'''
 
         print('Done with loading.')
-
         ### Models
         for name, obj in inspect.getmembers(common.networks.nuong_AE):
             if inspect.isclass(obj):
                 if obj.__name__==self.config.using_model:
                     self.model=obj()
+                    
         #if self.config.load_old_model:
         #    self.model.load_state_dict(torch.load(self.config.model_load_path))
 
@@ -168,9 +188,9 @@ class ConvAE_CIFAR(PytorchExperiment):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.run.hyperparameter.lr)
 
         ### Load pre-trained model
-        if "load_path" in self.config and self.config.load_old_model:
+        if "load_path" in self.config and self.config.load_old_checkpoint:
             #self.load_checkpoint(path=self.config.load_path, name="")
-            self.load_checkpoint(path=os.path.join(self.elog.work_dir,"checkpoint"), name="")
+            self.load_checkpoint(path=self.config.load_path, name="checkpoint_current.pth.tar")
 
         ### Criterion
         #self.criterion = torch.nn.PairwiseDistance()    #Norm, default 2, in between data pair
@@ -203,9 +223,9 @@ class ConvAE_CIFAR(PytorchExperiment):
             self.optimizer.zero_grad()
             output = self.model(data)[0]
 
-            loss1 = self.criterion(output, data)
-            loss2 = (1-self.criterion2(output, data))/10
-            loss=loss1+loss2
+            loss1 = self.criterion(output, data)*0.3
+            loss2 = (1-self.criterion2(output, data))*0.7
+            loss=loss1+loss2 # 0.0141 MSE on unnormalized data, 0.5659 MSE on normalized data, 0.33 ssim on both
 
             loss.backward()
             self.optimizer.step()
@@ -218,10 +238,11 @@ class ConvAE_CIFAR(PytorchExperiment):
                            100. * batch_idx / len(self.train_loader), loss.item()))
             
             
+            
             loss_list.append(loss.item())
             loss_SSIM_list.append(loss2.item())
             loss_MSE_list.append(loss1.item())
-
+            
         loss_per_epoch = np.mean(np.asarray(loss_list))
         self.do_write('Train Epoch: {} \tMean Loss: {}\n'.format(epoch, loss_per_epoch))
         self.do_write('Train Epoch: {} \tMean MSE Loss: {}\n'.format(epoch, np.mean(np.asarray(loss_MSE_list))))
@@ -245,8 +266,8 @@ class ConvAE_CIFAR(PytorchExperiment):
                 #target = data.cuda(async=True)
 
                 output = self.model(data)[0]
-                loss1 = self.criterion(output, data)
-                loss2 = (1-self.criterion2(output, data))/10
+                loss1 = self.criterion(output, data)*0.3
+                loss2 = (1-self.criterion2(output, data))*0.7
                 loss=loss1+loss2
                 val_loss_list.append(loss.item())
                 val_loss_SSIM_list.append(loss2.item())

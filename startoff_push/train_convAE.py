@@ -10,7 +10,10 @@ if __name__ == '__main__':
                                      "tensorboard": ("tensorboard", dict(target_dir=experiment_config.tensorboard_path)),
                                  },
                                  explogger_freq = 1,
-                                 save_checkpoint_every_epoch = 1,
+                                 #resume=os.path.join("C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\experiment_dir","20190510-084116_test_nuong"),
+                                 ignore_resume_config=True,
+                                 #resume_reset_epochs=True,
+                                 #resume_save_types=("model", "optimizer", "simple", "th_vars")
                                  )
     experiment.run()
 

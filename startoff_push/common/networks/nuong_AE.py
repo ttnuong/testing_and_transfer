@@ -84,9 +84,12 @@ class Net_wider(nn.Module):
         def __init__(self):
             super(Net_wider, self).__init__()
              # Encoder
+            #There are papers that highlight that deep NN with the right architectures achieve better results 
+            # than shallow ones that have the same computational power (e.g. number of neurons or connections). 
             #32x32x3
-            self.conv1 = nn.Conv2d(3, 128, kernel_size=8, stride=4, padding=2)#8x8x128
-            self.conv2 = nn.Conv2d(128, 3200, kernel_size=4, stride=3, padding=1)#3x3x3200
+            self.conv1 = nn.Conv2d(3, 128, kernel_size=3, stride=1, padding=1)#32x32x128
+            self.conv1b = nn.Conv2d(128, 128, kernel_size=4, stride=4, padding=2)#9x9x128
+            self.conv2 = nn.Conv2d(128, 3200, kernel_size=3, stride=4, padding=1)#3x3x3200
             self.fc1a = nn.Linear(3 * 3 * 3200, 1600)
             self.fc1b = nn.Linear(1600, 180)#2304
             #FC 32x32/240x240= 0,177
@@ -100,12 +103,15 @@ class Net_wider(nn.Module):
             
             self.fc4a = nn.Linear(180, 1600)
             self.fc4b = nn.Linear(1600, 3*3*3200)#3x3x3200
-            self.deconv1 = nn.ConvTranspose2d(3200, 128, kernel_size=4, stride=3, padding=1)#8x8x128
-            self.deconv2 = nn.ConvTranspose2d(128, 3, kernel_size=8, stride=4, padding=2)#32x32x3
+            self.deconv1 = nn.ConvTranspose2d(3200, 128, kernel_size=3, stride=4, padding=1)#9x9x128
+            
+            self.deconv2 = nn.ConvTranspose2d(128, 128, kernel_size=4, stride=4, padding=2)#32x32x128
+            self.deconv2b = nn.ConvTranspose2d(128, 3, kernel_size=3, stride=1, padding=1)#32x32x3
             
             self.relu = nn.ReLU()
             self.sigmoid = nn.Sigmoid()
             self.dropout = nn.Dropout(0.8)
+            
             self.batchnorm128 = nn.BatchNorm2d(128)
             self.batchnorm3200 = nn.BatchNorm2d(3200)
             
@@ -132,6 +138,8 @@ class Net_wider(nn.Module):
             #do_write("Encoding: Convolution...\n")
             x = F.relu(self.conv1(x))
             x = self.batchnorm128(x)
+            x = F.relu(self.conv1b(x))
+            #x = self.batchnorm128(x)
             x = self.dropout(x)
             x = F.relu(self.conv2(x))
             x = self.batchnorm3200(x)
@@ -160,10 +168,11 @@ class Net_wider(nn.Module):
             out = out.view(out.size(0), 3200, 3, 3)
             out = self.batchnorm3200(out)
             out = self.dropout(out)
-            out = self.relu(self.deconv1(out))
+            out = self.relu(self.deconv1(out))#9x9x128
+            out = self.relu(self.deconv2(out))#32x32x128
             out = self.batchnorm128(out)
             out = self.dropout(out)
-            out = self.sigmoid( self.relu(self.deconv2(out)))
+            out = self.sigmoid( self.relu(self.deconv2b(out)))
             return out
             
         def forward(self, x):
