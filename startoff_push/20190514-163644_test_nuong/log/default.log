@@ -1,0 +1,29 @@
+2019-05-14 16:36:49,432 - INFO - {
+    "base_dir": "C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\experiment_dir",
+    "data_path": "C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\data",
+    "load_old_checkpoint": true,
+    "load_path": "C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\experiment_dir\\20190514-091603_test_nuong\\checkpoint",
+    "log_interval": 20,
+    "loss1": "MSE",
+    "loss2": "SSIM",
+    "n_epochs": 10000,
+    "name": "test_nuong",
+    "no_cuda": true,
+    "run": {
+        "gpu_nr": 0,
+        "hyperparameter": {
+            "batch_size": 32,
+            "lr": 0.001
+        },
+        "logging": {
+            "log_interval": 20
+        },
+        "n_worker": 12,
+        "normalize_data": true,
+        "use_cuda": true
+    },
+    "seed": 1830607717,
+    "tensorboard_path": "C:\\Users\\Nuong\\Desktop\\heidelberg\\MA-Arbeitsordner\\experiment_dir\\tensorboard_log",
+    "text_log": "log\\logfile.txt",
+    "using_model": "Net"
+}

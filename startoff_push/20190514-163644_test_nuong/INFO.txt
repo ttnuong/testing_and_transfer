@@ -1,0 +1,5 @@
+normalized data,
+
+trained lr1e-3 with 50/50 MSE/SSIM till ep 75
+then till 105 with 10/90
+then till 126 with 60/40
