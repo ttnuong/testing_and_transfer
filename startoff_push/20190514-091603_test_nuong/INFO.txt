@@ -1,5 +1,0 @@
-trained with normalized data,
-
-and 50/50 MSE/SSIM loss until Episode 75, and until Episode 105 with 10/90 MSE/SSIM.
-
-Loss still decreases, but MSE is all over the place, with colors disappearing (and finer features still not appearing)

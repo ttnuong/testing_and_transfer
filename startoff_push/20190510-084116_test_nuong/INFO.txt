@@ -1,5 +1,0 @@
-trained with normalized data,
-
-and 50/50 MSE/SSIM loss until Episode 75
-
-Loss still decreases, but MSE,SSIM combo doesn't deliver the desired finer features.
